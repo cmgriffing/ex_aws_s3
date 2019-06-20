@@ -421,11 +421,11 @@ defmodule ExAws.S3 do
   requests deleting 1000 objects at a time until all are deleted.
 
   Can be streamed.
-  
+
   ## Example
   ```
   stream = ExAws.S3.list_objects(bucket(), prefix: "some/prefix") |> ExAws.stream!() |> Stream.map(& &1.key)
-  ExAws.S3.delete_all_objects(bucket(), stream) |> ExAws.request() 
+  ExAws.S3.delete_all_objects(bucket(), stream) |> ExAws.request()
   ```
   """
   @spec delete_all_objects(
@@ -885,6 +885,46 @@ defmodule ExAws.S3 do
         url = url_to_sign(bucket, object, config, virtual_host)
         datetime = :calendar.universal_time
         ExAws.Auth.presigned_url(http_method, url, :s3, datetime, config, expires_in, query_params)
+    end
+  end
+
+  @doc """
+  Generates a pre-signed POST for this object.
+  """
+  @spec presigned_post(config :: map, bucket :: binary, object :: binary, opts :: presigned_url_opts) :: {:ok, binary} | {:error, binary}
+  @one_week 60 * 60 * 24 * 7
+  def presigned_post(config, bucket, object, opts \\ []) do
+    expires_in = Keyword.get(opts, :expires_in, 3600)
+    virtual_host = Keyword.get(opts, :virtual_host, false)
+    query_params = Keyword.get(opts, :query_params, [])
+    params = Keyword.get(opts, :params, %{})
+
+    IO.inspect("params in ex_aws_s3")
+    IO.inspect(params)
+    case expires_in > @one_week do
+      true -> {:error, "expires_in_exceeds_one_week"}
+      false ->
+
+        url = url_to_sign(bucket, object, config, virtual_host)
+        datetime = :calendar.universal_time
+
+        # ExAws.Auth.presigned_url(http_method, url, :s3, datetime, config, expires_in, query_params)
+
+        ExAws.Auth.presigned_post(
+          url,
+          :s3,
+          datetime,
+          config,
+          expires_in,
+          query_params,
+          %{
+            key: object,
+            bucket: bucket,
+            Fields: params[:Fields],
+            Conditions: params[:Conditions]
+          }
+        )
+
     end
   end
 
